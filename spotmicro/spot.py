@@ -21,6 +21,8 @@ from spotmicro.util import pybullet_data
 print(pybullet_data.getDataPath())
 from spotmicro.Kinematics.SpotKinematics import SpotModel
 import spotmicro.Kinematics.LieAlgebra as LA
+import gtsam
+
 
 INIT_POSITION = [0, 0, 0.25]
 INIT_RACK_POSITION = [0, 0, 1]
@@ -183,6 +185,8 @@ class Spot(object):
     """
         # SPOT MODEL
         self.spot = SpotModel()
+        self.lastBasePose = gtsam.Pose3()
+        self.lastLastBasePose = gtsam.Pose3()
         # Whether to include contact sensing
         self.contacts = contacts
         # Control Inputs
@@ -541,6 +545,9 @@ class Spot(object):
             self.quadruped))
         return orientation
 
+    def GetBasePositionAndOrientation(self):
+        return self._pybullet_client.getBasePositionAndOrientation(self.quadruped)
+
     def GetBaseRollPitchYaw(self):
         """Get the rate of orientation change of the spot's base in euler angle.
 
@@ -662,6 +669,20 @@ class Spot(object):
         self.prev_lin_twist = lin_twist
         self.prev_ang_twist = ang_twist
 
+        print("---------")
+        print(f"{ang_twist}, {lin_twist / self.time_step}")
+        ### Alternative Methods:
+        p = gtsam.Point3(np.array(pos))
+        q = gtsam.Rot3.Quaternion(orn[3], orn[0], orn[1], orn[2])
+        currPose = gtsam.Pose3(q, p)
+        secondTwist = gtsam.Pose3.Logmap(self.lastBasePose.between(currPose))
+        firstTwist = gtsam.Pose3.Logmap(self.lastLastBasePose.between(self.lastBasePose))
+        ang_twist = ((secondTwist[:3] + firstTwist[:3]) / 2)
+        lin_twist = (secondTwist[3:] - firstTwist[3:]) / self.time_step
+        self.lastLastBasePose = self.lastBasePose
+        self.lastBasePose = currPose
+        print(f"{ang_twist}, {lin_twist}")
+        
         # Get Contacts
         CONTACT = list(self._pybullet_client.getContactPoints(self.quadruped))
 

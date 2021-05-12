@@ -195,8 +195,9 @@ class spotGymEnv(gym.Env):
         # @TODO fix logging
 
         # NUM ITERS
-        self._time_step = 0.01
-        self._action_repeat = action_repeat
+        scaler = 2
+        self._time_step = 0.01 / scaler
+        self._action_repeat = action_repeat # * scaler
         self._num_bullet_solver_iterations = 300
         self.logging = None
         if pd_control_enabled or accurate_motor_model_enabled:

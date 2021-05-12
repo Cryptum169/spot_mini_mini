@@ -191,6 +191,9 @@ class spotBezierEnv(spotGymEnv):
         # DRAW FOOT PATH
         if self.draw_foot_path:
             self.DrawFootPath()
+        
+        # print(self._pybullet_client.getLinkState(self.spot.quadruped,
+        #                                         self.spot._foot_id_list[3])[0])
 
         return np.array(self._get_observation()), reward, done, {}
 
@@ -199,6 +202,16 @@ class spotBezierEnv(spotGymEnv):
 
     def return_yaw(self):
         return self.yaw
+
+    def robot_pose(self):
+        return self.spot.GetBasePositionAndOrientation()
+
+    # def get_ts_ar(self):
+    #     print(f"{self.spot._action_repeat}, {self.spot.time_step}")
+
+    def set_ts_ar(self, ar, ts):
+        self.spot.SetTimeSteps(ar, ts)
+        return
 
     def _reward(self):
         # get observation

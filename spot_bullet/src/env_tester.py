@@ -97,6 +97,7 @@ def main():
                         draw_foot_path=draw_foot_path,
                         env_randomizer=env_randomizer)
 
+    # env.set_ts_ar(2, 0.01 / 2)
     # Set seeds
     env.seed(seed)
     np.random.seed(seed)
@@ -115,6 +116,8 @@ def main():
     T_bf0 = spot.WorldToFoot
     T_bf = copy.deepcopy(T_bf0)
 
+    print(f"dt = {env._time_step}")
+
     bzg = BezierGait(dt=env._time_step)
 
     bz_step = BezierStepper(dt=env._time_step, mode=0)
@@ -131,90 +134,118 @@ def main():
     yaw = 0.0
 
     print("STARTED SPOT TEST ENV")
+    # print(env.get_ts_ar())
     t = 0
-    while t < (int(max_timesteps)):
+    csv_header = "ts,x,y,z,i,j,k,w,wx,wy,wz,ax,ay,az,fl0,fl1,fl2,fr0,fr1,fr2,bl0,bl1,bl2,br0,br1,br2,flc,frc,blc,brc\n"
+    with open("sequence1.txt", 'w') as f:
+        f.write(csv_header)
+        while t < (int(max_timesteps)):
 
-        bz_step.ramp_up()
+            bz_step.ramp_up()
 
-        pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth = bz_step.StateMachine(
-        )
+            pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth = bz_step.StateMachine(
+            )
 
-        pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth, SwingPeriod = g_u_i.UserInput(
-        )
+            pos, orn, StepLength, LateralFraction, YawRate, StepVelocity, ClearanceHeight, PenetrationDepth, SwingPeriod = g_u_i.UserInput(
+            )
 
-        # Update Swing Period
-        bzg.Tswing = SwingPeriod
+            # Update Swing Period
+            bzg.Tswing = SwingPeriod
 
-        yaw = env.return_yaw()
+            yaw = env.return_yaw()
 
-        P_yaw = 5.0
+            P_yaw = 5.0
 
-        if ARGS.AutoYaw:
-            YawRate += -yaw * P_yaw
+            if ARGS.AutoYaw:
+                YawRate += -yaw * P_yaw
 
-        # print("YAW RATE: {}".format(YawRate))
+            # print("YAW RATE: {}".format(YawRate))
 
-        # TEMP
-        bz_step.StepLength = StepLength
-        bz_step.LateralFraction = LateralFraction
-        bz_step.YawRate = YawRate
-        bz_step.StepVelocity = StepVelocity
+            # TEMP
+            bz_step.StepLength = StepLength
+            bz_step.LateralFraction = LateralFraction
+            bz_step.YawRate = YawRate
+            bz_step.StepVelocity = StepVelocity
 
-        contacts = state[-4:]
+            contacts = state[-4:]
 
-        FL_phases.append(env.spot.LegPhases[0])
-        FR_phases.append(env.spot.LegPhases[1])
-        BL_phases.append(env.spot.LegPhases[2])
-        BR_phases.append(env.spot.LegPhases[3])
+            FL_phases.append(env.spot.LegPhases[0])
+            FR_phases.append(env.spot.LegPhases[1])
+            BL_phases.append(env.spot.LegPhases[2])
+            BR_phases.append(env.spot.LegPhases[3])
 
-        # Get Desired Foot Poses
-        T_bf = bzg.GenerateTrajectory(StepLength, LateralFraction, YawRate,
-                                      StepVelocity, T_bf0, T_bf,
-                                      ClearanceHeight, PenetrationDepth,
-                                      contacts)
-        joint_angles = spot.IK(orn, pos, T_bf)
+            # Get Desired Foot Poses
+            T_bf = bzg.GenerateTrajectory(StepLength, LateralFraction, YawRate,
+                                        StepVelocity, T_bf0, T_bf,
+                                        ClearanceHeight, PenetrationDepth,
+                                        contacts)
+            # print(T_bf['BR'])
+            joint_angles = spot.IK(orn, pos, T_bf)
 
-        FL_Elbow.append(np.degrees(joint_angles[0][-1]))
+            FL_Elbow.append(np.degrees(joint_angles[0][-1]))
 
-        # for i, (key, Tbf_in) in enumerate(T_bf.items()):
-        #     print("{}: \t Angle: {}".format(key, np.degrees(joint_angles[i])))
-        # print("-------------------------")
+            # print("Contacts: {}".format(contacts))
 
-        env.pass_joint_angles(joint_angles.reshape(-1))
-        # Get External Observations
-        env.spot.GetExternalObservations(bzg, bz_step)
-        # Step
-        state, reward, done, _ = env.step(action)
-        # print("IMU Roll: {}".format(state[0]))
-        # print("IMU Pitch: {}".format(state[1]))
-        # print("IMU GX: {}".format(state[2]))
-        # print("IMU GY: {}".format(state[3]))
-        # print("IMU GZ: {}".format(state[4]))
-        # print("IMU AX: {}".format(state[5]))
-        # print("IMU AY: {}".format(state[6]))
-        # print("IMU AZ: {}".format(state[7]))
-        # print("-------------------------")
-        if done:
-            print("DONE")
-            if ARGS.AutoReset:
-                env.reset()
-                # plt.plot()
-                # # plt.plot(FL_phases, label="FL")
-                # # plt.plot(FR_phases, label="FR")
-                # # plt.plot(BL_phases, label="BL")
-                # # plt.plot(BR_phases, label="BR")
-                # plt.plot(FL_Elbow, label="FL ELbow (Deg)")
-                # plt.xlabel("dt")
-                # plt.ylabel("value")
-                # plt.title("Leg Phases")
-                # plt.legend()
-                # plt.show()
+            # for i, (key, Tbf_in) in enumerate(T_bf.items()):
+            #     print("{}: \t Angle: {}".format(key, np.degrees(joint_angles[i])))
+            # print("-------------------------")
 
-        # time.sleep(1.0)
+            env.pass_joint_angles(joint_angles.reshape(-1))
+            # Get External Observations
+            env.spot.GetExternalObservations(bzg, bz_step)
+            # Step
+            state, reward, done, _ = env.step(action)
+            # # print(state)
+            # print(env.robot_pose())
+            # # print("IMU Roll: {}".format(state[0]))
+            # # print("IMU Pitch: {}".format(state[1]))
+            # print("IMU GX: {}".format(state[2]))
+            # print("IMU GY: {}".format(state[3]))
+            # print("IMU GZ: {}".format(state[4]))
+            # print("IMU AX: {}".format(state[5]))
+            # print("IMU AY: {}".format(state[6]))
+            # print("IMU AZ: {}".format(state[7]))
+            # print("-------------------------")
 
-        t += 1
-    env.close()
-    print(joint_angles)
+            (rbt_pose, rbt_orientation) = env.robot_pose()
+            data = f"{t},{rbt_pose[0]},{rbt_pose[1]},{rbt_pose[2]}"
+            # print(data)
+            rbt_orn = f"{rbt_orientation[0]},{rbt_orientation[1]},{rbt_orientation[2]},{rbt_orientation[3]}"
+            data = data + "," + rbt_orn
+            imu_data = f"{state[2]},{state[3]},{state[4]},{state[5]},{state[6]},{state[7]}"
+            data = data + "," + imu_data
+
+            for i, (key, Tbf_in) in enumerate(T_bf.items()):
+                VIstring = ','.join([str(num) for num in joint_angles[i]])
+                data += "," + VIstring
+            
+            contact_string = ",".join([str(int(num)) for num in contacts])
+            data += "," + contact_string + "\n"
+            # print(data)
+            f.write(data)
+            # print("{}: \t Angle: {}".format(key, np.degrees(joint_angles[i])))
+
+            # if done:
+            #     print("DONE")
+            #     if ARGS.AutoReset:
+            #         env.reset()
+            #         plt.plot()
+            #         # plt.plot(FL_phases, label="FL")
+            #         # plt.plot(FR_phases, label="FR")
+            #         # plt.plot(BL_phases, label="BL")
+            #         # plt.plot(BR_phases, label="BR")
+            #         plt.plot(FL_Elbow, label="FL ELbow (Deg)")
+            #         plt.xlabel("dt")
+            #         plt.ylabel("value")
+            #         plt.title("Leg Phases")
+            #         plt.legend()
+            #         plt.show()
+
+            # time.sleep(1.0)
+
+            t += 1
+        env.close()
+
 
 
 if __name__ == '__main__':

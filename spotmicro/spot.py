@@ -205,7 +205,7 @@ class Spot(object):
         self.num_motors = 12
         self.num_legs = int(self.num_motors / 3)
         self._pybullet_client = pybullet_client
-        self._action_repeat = action_repeat
+        self._action_repeat = 1
         self._urdf_root = urdf_root
         self._self_collision_enabled = self_collision_enabled
         self._motor_velocity_limit = motor_velocity_limit
@@ -615,7 +615,7 @@ class Spot(object):
     """
         return len(self.GetObservation())
 
-    def GetObservation(self):
+    def GetObservation(self, action=True):
         """Get the observations of minitaur.
         It includes the angles, velocities, torques and the orientation of the base.
         Returns:
@@ -640,6 +640,7 @@ class Spot(object):
         orn = self.GetBaseOrientation()
         roll, pitch, yaw = self._pybullet_client.getEulerFromQuaternion(
             [orn[0], orn[1], orn[2], orn[3]])
+        # print(f"yaw: {yaw}")
         # rpy = LA.RPY(roll, pitch, yaw)
         # R, _ = LA.TransToRp(rpy)
         # T_wb = LA.RpToTrans(R, np.array([pos[0], pos[1], pos[2]]))
@@ -661,27 +662,36 @@ class Spot(object):
         # # Get linear accelerations
         # lin_twist = -Vb[3:]
         # ang_twist = Vb[:3]
-        lin_acc = lin_twist - self.prev_lin_twist
-        if lin_acc.all() == 0.0:
-            lin_acc = self.prev_lin_acc
-        self.prev_lin_acc = lin_acc
-        # print("LIN TWIST: ", lin_twist)
-        self.prev_lin_twist = lin_twist
-        self.prev_ang_twist = ang_twist
+        # lin_acc = lin_twist - self.prev_lin_twist
+        # if lin_acc.all() == 0.0:
+        #     lin_acc = self.prev_lin_acc
+        # self.prev_lin_acc = lin_acc
+        # # print("LIN TWIST: ", lin_twist)
+        # self.prev_lin_twist = lin_twist
+        # self.prev_ang_twist = ang_twist
 
-        print("---------")
-        print(f"{ang_twist}, {lin_twist / self.time_step}")
+        # print("---------")
+        # print(f"{ang_twist}, {lin_twist / self.time_step}")
         ### Alternative Methods:
-        p = gtsam.Point3(np.array(pos))
-        q = gtsam.Rot3.Quaternion(orn[3], orn[0], orn[1], orn[2])
-        currPose = gtsam.Pose3(q, p)
-        secondTwist = gtsam.Pose3.Logmap(self.lastBasePose.between(currPose))
-        firstTwist = gtsam.Pose3.Logmap(self.lastLastBasePose.between(self.lastBasePose))
-        ang_twist = ((secondTwist[:3] + firstTwist[:3]) / 2)
-        lin_twist = (secondTwist[3:] - firstTwist[3:]) / self.time_step
-        self.lastLastBasePose = self.lastBasePose
-        self.lastBasePose = currPose
-        print(f"{ang_twist}, {lin_twist}")
+        if action is True:
+            p = gtsam.Point3(np.array(pos))
+            q = gtsam.Rot3.Quaternion(orn[3], orn[0], orn[1], orn[2])
+            currPose = gtsam.Pose3(q, p)
+            # ---------------------
+            # Through Twist
+            # secondTwist = gtsam.Pose3.Logmap(self.lastBasePose.between(currPose)) / self.time_step
+            # firstTwist = gtsam.Pose3.Logmap(self.lastLastBasePose.between(self.lastBasePose)) / self.time_step
+            # self.prev_ang_twist = (secondTwist[:3] + firstTwist[:3]) / 2
+            # self.prev_lin_twist = (secondTwist[3:] - firstTwist[3:])
+            # ---------------------
+            self.prev_lin_twist = self.lastLastBasePose.rotation().inverse().matrix() @ (
+                currPose.translation() + self.lastLastBasePose.translation() - 2 * self.lastBasePose.translation()
+            ) / (self.time_step * self.time_step)
+            self.prev_ang_twist = gtsam.Rot3.Logmap(self.lastLastBasePose.rotation().inverse().compose(q)) / (2 * self.time_step)
+            self.lastLastBasePose = self.lastBasePose
+            self.lastBasePose = currPose
+
+        # print(f"{ang_twist}")
         
         # Get Contacts
         CONTACT = list(self._pybullet_client.getContactPoints(self.quadruped))
@@ -709,8 +719,9 @@ class Spot(object):
         # order: roll, pitch, gyro(x,y,z), acc(x, y, z)
         observation.append(roll)
         observation.append(pitch)
-        observation.extend(list(ang_twist))
-        observation.extend(list(lin_acc))
+        observation.extend(list(self.prev_ang_twist))
+        observation.extend(list(self.prev_lin_twist))
+        # print(observation)
         # Control Input
         # observation.append(self.StepLength)
         # observation.append(self.StepVelocity)

@@ -568,7 +568,8 @@ class spotGymEnv(gym.Env):
         current_base_position = self.spot.GetBasePosition()
 
         # get observation
-        obs = self._get_observation()
+        # obs = self._get_observation()
+        obs = [0, 0, 0, 0, 0, 0, 0]
         # forward_reward = current_base_position[0] - self._last_base_position[0]
 
         # # POSITIVE FOR FORWARD, NEGATIVE FOR BACKWARD | NOTE: HIDDEN
@@ -687,7 +688,7 @@ class spotGymEnv(gym.Env):
       The noisy observation with latency.
     """
 
-        self._observation = self.spot.GetObservation()
+        self._observation = self.spot.GetObservation(action=False)
         return self._observation
 
     def _get_realistic_observation(self):

@@ -207,23 +207,39 @@ def main():
             # print("IMU AZ: {}".format(state[7]))
             # print("-------------------------")
 
-            (rbt_pose, rbt_orientation) = env.robot_pose()
-            data = f"{t},{rbt_pose[0]},{rbt_pose[1]},{rbt_pose[2]}"
-            # print(data)
-            rbt_orn = f"{rbt_orientation[0]},{rbt_orientation[1]},{rbt_orientation[2]},{rbt_orientation[3]}"
-            data = data + "," + rbt_orn
-            imu_data = f"{state[2]},{state[3]},{state[4]},{state[5]},{state[6]},{state[7]}"
-            data = data + "," + imu_data
+            (robot_pos, robot_quat) = env.robot_pose()
+            leg_poses = []
+            leg_poses.append(env.foot_pose("FL"))
+            leg_poses.append(env.foot_pose("FR"))
+            leg_poses.append(env.foot_pose("BL"))
+            leg_poses.append(env.foot_pose("BR"))
 
+
+
+            data = f"{t},{robot_pos[0]},{robot_pos[1]},{robot_pos[2]}"
+            robot_orientation = f",{robot_quat[0]},{robot_quat[1]},{robot_quat[2]},{robot_quat[3]}"
+            data = data + robot_orientation
+
+            # Base frame IMU measurements
+            imu_data = f",{state[2]},{state[3]},{state[4]},{state[5]},{state[6]},{state[7]}"
+            data = data + imu_data
+
+            # Leg joint angle measurements
             for i, (key, Tbf_in) in enumerate(T_bf.items()):
                 VIstring = ','.join([str(num) for num in joint_angles[i]])
                 data += "," + VIstring
-            
+
+            # Leg contact frame pose measurements
+            for leg_pose in leg_poses:
+                leg_position, leg_orientation = leg_pose[0], leg_pose[1]
+                data += f"{leg_position[0]},{leg_position[1]},{leg_position[2]}"
+                data += f",{leg_orientation[0]},{leg_orientation[1]},{leg_orientation[2]},{leg_orientation[3]}"
+
+
             contact_string = ",".join([str(int(num)) for num in contacts])
             data += "," + contact_string + "\n"
-            # print(data)
+            print(data)
             f.write(data)
-            # print("{}: \t Angle: {}".format(key, np.degrees(joint_angles[i])))
 
             # if done:
             #     print("DONE")

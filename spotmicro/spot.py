@@ -577,6 +577,27 @@ class Spot(object):
         """
         return self._pybullet_client.getBaseVelocity(self.quadruped)
 
+    def GetFootPosition(self, foot_name):
+        assert foot_name in ["FL", "BL", "FR", "BR"], "Incorrect foot name"
+
+        if foot_name == "FL":
+            position, orientation = self._pybullet_client.getLinkState(self.quadruped,
+                    self._foot_id_list[0])[0:2]
+            return position, orientation
+        if foot_name == "FR":
+            position, orientation = self._pybullet_client.getLinkState(self.quadruped,
+                    self._foot_id_list[1])[0:2]
+            return position, orientation
+        if foot_name == "BL":
+            position, orientation = self._pybullet_client.getLinkState(self.quadruped,
+                    self._foot_id_list[2])[0:2]
+            return position, orientation
+        if foot_name == "BR":
+            position, orientation= self._pybullet_client.getLinkState(self.quadruped,
+                    self._foot_id_list[3])[0:2]
+            return position, orientation
+
+
     def GetActionDimension(self):
         """Get the length of the action list.
 
@@ -692,7 +713,7 @@ class Spot(object):
             self.lastBasePose = currPose
 
         # print(f"{ang_twist}")
-        
+
         # Get Contacts
         CONTACT = list(self._pybullet_client.getContactPoints(self.quadruped))
 

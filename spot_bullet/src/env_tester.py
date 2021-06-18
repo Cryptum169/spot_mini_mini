@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
-
+import os
 import sys
 
 sys.path.append('../../')
@@ -136,8 +136,21 @@ def main():
     print("STARTED SPOT TEST ENV")
     # print(env.get_ts_ar())
     t = 0
-    csv_header = "ts,x,y,z,i,j,k,w,wx,wy,wz,ax,ay,az,fl0,fl1,fl2,fr0,fr1,fr2,bl0,bl1,bl2,br0,br1,br2,flc,frc,blc,brc\n"
-    with open("sequence1.txt", 'w') as f:
+    csv_header = "ts,x,y,z,i,j,k,w,wx,wy,wz,ax,ay,az,fl0,fl1,fl2,fr0,fr1,fr2,bl0,bl1,bl2,br0,br1,br2," +\
+        "flx,fly,flz,fli,flj,flk,flw," +\
+        "frx,fry,frz,fri,frj,frk,frw," +\
+        "blx,bly,blz,bli,blj,blk,blw," +\
+        "brx,bry,brz,bri,brj,brk,brw," +\
+        "flc,frc,blc,brc\n"
+    seqNum = 1
+    preFixName = "sequence"
+    postFix = ".txt"
+    fName = preFixName + str(seqNum) + postFix
+    while os.path.exists(fName):
+        seqNum += 1
+        fName = preFixName + str(seqNum) + postFix
+    
+    with open(fName, 'w') as f:
         f.write(csv_header)
         while t < (int(max_timesteps)):
 
@@ -214,8 +227,6 @@ def main():
             leg_poses.append(env.foot_pose("BL"))
             leg_poses.append(env.foot_pose("BR"))
 
-
-
             data = f"{t},{robot_pos[0]},{robot_pos[1]},{robot_pos[2]}"
             robot_orientation = f",{robot_quat[0]},{robot_quat[1]},{robot_quat[2]},{robot_quat[3]}"
             data = data + robot_orientation
@@ -228,16 +239,16 @@ def main():
             for i, (key, Tbf_in) in enumerate(T_bf.items()):
                 VIstring = ','.join([str(num) for num in joint_angles[i]])
                 data += "," + VIstring
+            data += ","
 
             # Leg contact frame pose measurements
             for leg_pose in leg_poses:
                 leg_position, leg_orientation = leg_pose[0], leg_pose[1]
                 data += f"{leg_position[0]},{leg_position[1]},{leg_position[2]}"
-                data += f",{leg_orientation[0]},{leg_orientation[1]},{leg_orientation[2]},{leg_orientation[3]}"
-
+                data += f",{leg_orientation[0]},{leg_orientation[1]},{leg_orientation[2]},{leg_orientation[3]},"
 
             contact_string = ",".join([str(int(num)) for num in contacts])
-            data += "," + contact_string + "\n"
+            data += contact_string + "\n"
             print(data)
             f.write(data)
 

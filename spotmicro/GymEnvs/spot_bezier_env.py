@@ -191,7 +191,7 @@ class spotBezierEnv(spotGymEnv):
         # DRAW FOOT PATH
         if self.draw_foot_path:
             self.DrawFootPath()
-        
+
         # print(self._pybullet_client.getLinkState(self.spot.quadruped,
         #                                         self.spot._foot_id_list[3])[0])
 
@@ -205,6 +205,9 @@ class spotBezierEnv(spotGymEnv):
 
     def robot_pose(self):
         return self.spot.GetBasePositionAndOrientation()
+
+    def foot_pose(self, foot_name):
+        return self.spot.GetFootPosition(foot_name)
 
     # def get_ts_ar(self):
     #     print(f"{self.spot._action_repeat}, {self.spot.time_step}")
